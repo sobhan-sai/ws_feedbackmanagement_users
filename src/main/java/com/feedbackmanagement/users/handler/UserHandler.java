@@ -14,6 +14,7 @@ import com.feedbackmanagement.users.model.Message;
 import com.feedbackmanagement.users.model.Role;
 import com.feedbackmanagement.users.model.User;
 import com.feedbackmanagement.users.repoitory.UserRepository;
+import com.feedbackmanagement.users.security.PBKDF2Encoder;
 
 import reactor.core.publisher.Mono;
 
@@ -22,10 +23,16 @@ public class UserHandler {
 
 	@Autowired
 	UserRepository userRepository;
+	
+	@Autowired
+	private PBKDF2Encoder passwordEncoder;
 
 	public Mono<ServerResponse> userRegistration(ServerRequest sererRequest) {
 		Mono<User> userMono = sererRequest.bodyToMono(User.class);
-		return userMono.flatMap(user -> userRepository.findById(user.getEmployeeId()).flatMap(
+		return userMono.map(testUser->{
+			testUser.setPassword(passwordEncoder.encode(testUser.getPassword())); 
+			return testUser;
+			}).flatMap(user -> userRepository.findById(user.getEmployeeId()).flatMap(
 				dbUser -> ServerResponse.badRequest().body(BodyInserters.fromObject(new Message("User already exist"))))
 				.switchIfEmpty(userRepository.save(user).flatMap(savedUser -> ServerResponse.ok()
 						.contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(savedUser)))));
